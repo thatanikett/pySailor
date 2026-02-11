@@ -1,5 +1,12 @@
 import socket
 import ssl
+import tkinter
+
+
+WIDTH , HEIGHT = 800, 600
+HSTEP , VSTEP = 13 ,18
+SCROLL_STEP = 100
+
 
 class URL:
     def __init__(self, url):
@@ -20,7 +27,6 @@ class URL:
         if ":" in self.host:
             self.host,port = self.host.split(":",1)
             self.port = int(port)
-
 
 
     def request(self):
@@ -63,7 +69,11 @@ class URL:
         return content
 
 
-def show(body):
+
+
+#display html on cli
+def lex(body):
+        text = ""
         in_tag = False
         for c in body:
             if c == "<":
@@ -71,12 +81,61 @@ def show(body):
             elif c == ">":
                 in_tag = False
             elif not in_tag:
-                print(c,end="")
+                text += c
+        return text
 
 def load(url):
     body = url.request()
-    show(body)
+    lex(body)
+
+#storing text coordinates
+def layout(text):
+    display_list = []
+    cursor_x, cursor_y = HSTEP, VSTEP
+    for c in text:
+        display_list.append((cursor_x, cursor_y, c))
+        cursor_x += HSTEP
+        if cursor_x >= WIDTH - HSTEP:
+            cursor_y += VSTEP
+            cursor_x = HSTEP
+
+    return display_list
+
+
+class Browser:
+    def __init__(self):
+        self.window = tkinter.Tk()
+        self.canvas = tkinter.Canvas(
+            self.window,
+            width=WIDTH,
+            height=HEIGHT
+        )
+        self.canvas.pack()
+        self.scroll = 0
+        self.window.bind("<Down>", self.scrolldown)
+
+
+    def draw(self):
+        self.canvas.delete("all")
+        for x,y,c in self.display_list:
+            self.canvas.create_text(x ,y-self.scroll ,text=c)
+
+    def load(self, url):
+        body = url.request()
+        text = lex(body)
+        self.display_list = layout(text)
+        self.draw()
+        
+    #event handlers
+    def scrolldown(self,e):
+        self.scroll += SCROLL_STEP
+        self.draw()
+
+
+
 
 if __name__ == "__main__":
      import sys
-     load(URL(sys.argv[1]))
+     Browser().load(URL(sys.argv[1]))
+     tkinter.mainloop()
+
