@@ -45,7 +45,6 @@ class URL:
         request += "\r\n"
         s.send(request.encode("utf8")) #string -> bytes
 
-
         response = s.makefile("r", encoding="utf8" ,newline="\r\n")
         #makefile is helper function of collecting response bits
         #it returns filelike object containing every byte, then here we encode(utf8) and formating to http standard(\r\n)
@@ -93,8 +92,16 @@ def layout(text):
     display_list = []
     cursor_x, cursor_y = HSTEP, VSTEP
     for c in text:
+        #handle newline
+        if c == "\n":
+            cursor_x = HSTEP
+            cursor_y += VSTEP #paragraph-effect
+            continue 
+
         display_list.append((cursor_x, cursor_y, c))
         cursor_x += HSTEP
+
+        #soft-wrapping
         if cursor_x >= WIDTH - HSTEP:
             cursor_y += VSTEP
             cursor_x = HSTEP
@@ -110,26 +117,66 @@ class Browser:
             width=WIDTH,
             height=HEIGHT
         )
-        self.canvas.pack()
+        self.canvas.pack(fill="both", expand=True)
         self.scroll = 0
-        self.window.bind("<Down>", self.scrolldown)
+        self.window.bind("<Configure>", self.handle_resize)
 
-
+        #keyboard binding
+        # self.window.bind("<Configure>", self.canvas.pack())
+        self.window.bind("<Down>", self.scrolldown) 
+        self.window.bind("<Up>", self.scrollup)
+        #mouse/touchpad
+        self.window.bind("<MouseWheel>",self.handle_mouswheel)
+        #For linux
+        self.window.bind("<Button-4>", self.scrollup)
+        self.window.bind("<Button-5>", self.scrolldown)
+        
     def draw(self):
-        self.canvas.delete("all")
+        self.canvas.delete("all") #to clear old text
         for x,y,c in self.display_list:
+
+            #scroll optimisation : skip chars that are offscreen
+            if  y > self.scroll + HEIGHT: continue #skip below
+            if y + VSTEP < self.scroll: continue #skip above
+            #draw
             self.canvas.create_text(x ,y-self.scroll ,text=c)
 
     def load(self, url):
         body = url.request()
-        text = lex(body)
-        self.display_list = layout(text)
+        self.text = lex(body)
+        self.display_list = layout(self.text)
         self.draw()
         
-    #event handlers
+    #EVENT HANDLERS
     def scrolldown(self,e):
         self.scroll += SCROLL_STEP
         self.draw()
+    
+    def scrollup(self,e):
+        self.scroll -= SCROLL_STEP
+        if self.scroll < 0:
+            self.scroll = 0
+        self.draw()
+        
+    def handle_mouswheel(self,e):
+        #delta is change is dist & dirn through mouse/touch
+        if e.delta:
+            self.scrollup(e)
+        else:
+            self.scrolldown(e)
+        
+    def handle_resize(self,e):
+        global WIDTH, HEIGHT
+        WIDTH = e.width
+        HEIGHT = e.height
+        #
+        #hasattr: checks if object contains a specific variable or not 
+        #here we check if object(for ex self) has self.text or not 
+        #recalulate layout based on new size
+        if hasattr(self, "text"):
+            self.display_list = layout(self.text)
+            self.draw()
+
 
 
 
