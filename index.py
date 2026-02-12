@@ -1,7 +1,7 @@
 import socket
 import ssl
 import tkinter
-
+from assets import AssetManager
 
 WIDTH , HEIGHT = 800, 600
 HSTEP , VSTEP = 13 ,18
@@ -109,6 +109,9 @@ def layout(text):
     return display_list
 
 
+
+
+
 class Browser:
     def __init__(self):
         self.window = tkinter.Tk()
@@ -120,6 +123,7 @@ class Browser:
         self.canvas.pack(fill="both", expand=True)
         self.scroll = 0
         self.window.bind("<Configure>", self.handle_resize)
+        self.assets = AssetManager()
 
         #keyboard binding
         # self.window.bind("<Configure>", self.canvas.pack())
@@ -130,23 +134,31 @@ class Browser:
         #For linux
         self.window.bind("<Button-4>", self.scrollup)
         self.window.bind("<Button-5>", self.scrolldown)
-        
+
+    def draw_icon(self,x,y):
+        #pass filename and category
+        img = self.assetsget_image("smile.png","resources/emojis")
+        if img:
+            self.canvas.create_image(x,y, image=img, anchor="nw")
+
     def draw(self):
         self.canvas.delete("all") #to clear old text
         for x,y,c in self.display_list:
-
+            #
             #scroll optimisation : skip chars that are offscreen
             if  y > self.scroll + HEIGHT: continue #skip below
             if y + VSTEP < self.scroll: continue #skip above
             #draw
             self.canvas.create_text(x ,y-self.scroll ,text=c)
 
+        
     def load(self, url):
         body = url.request()
         self.text = lex(body)
         self.display_list = layout(self.text)
         self.draw()
-        
+
+    
     #EVENT HANDLERS
     def scrolldown(self,e):
         self.scroll += SCROLL_STEP
